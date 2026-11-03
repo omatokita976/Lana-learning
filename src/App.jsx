@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { GraduationCap, HeartPulse, Play, BarChart3, Moon, Sun, Clock, Check, X, RotateCcw, Home, SkipForward, ChevronLeft } from 'lucide-react'
+import { GraduationCap, HeartPulse, Play, BarChart3, Moon, Sun, Clock, Check, X, RotateCcw, Home, SkipForward, ChevronLeft, Award, Flag } from 'lucide-react'
 import { QUESTIONS, LEVELS, SUBJECTS } from './data/questions'
+import { EXAM_PLAN, CC_WEIGHT, PASS_MARK } from './data/config'
 
 const ld = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } }
 const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
@@ -15,6 +16,9 @@ export default function App() {
   const [hist, setHist] = useState(() => ld('ll_hist', []))
   const [quiz, setQuiz] = useState(() => { const s = ld('ll_session', null); return s && s.ids.every(byId) ? s : null })
   const [res, setRes] = useState(null)
+  const [year, setYear] = useState(() => ld('ll_year', {}))
+  const [flags, setFlags] = useState(() => ld('ll_flags', []))
+  const toggleFlag = id => { const f = flags.includes(id) ? flags.filter(x => x !== id) : [...flags, id]; setFlags(f); sv('ll_flags', f) }
   const [cfg, setCfg] = useState({ level: 'Niveau 4', subject: 'Toutes', count: 5, timer: false })
 
   useEffect(() => { document.documentElement.classList.toggle('dark', dark); sv('ll_dark', dark) }, [dark])
@@ -38,13 +42,20 @@ export default function App() {
     setQuiz({ ids, ans: {}, i: 0, sec: 0, timer: cfg.timer, level: cfg.level, subject: cfg.subject })
     setView('quiz')
   }
+  const startExam = plan => {
+    const p = QUESTIONS.filter(q => q.level === cfg.level)
+    const ids = [...p].sort(() => Math.random() - 0.5).slice(0, Math.min(plan.questions, p.length)).map(q => q.id)
+    setQuiz({ ids, ans: {}, i: 0, sec: 0, timer: true, level: cfg.level, subject: plan.label, exam: plan.id })
+    setView('quiz')
+  }
   const finish = () => {
     const qs = quiz.ids.map(byId)
     const good = qs.filter(q => ok(q, quiz.ans[q.id])).length
     const e = { date: new Date().toISOString(), level: quiz.level, subject: quiz.subject, total: qs.length, good, score: +(good / qs.length * 20).toFixed(1), sec: quiz.sec, timer: quiz.timer }
     const h = [e, ...hist].slice(0, 50)
     setHist(h); sv('ll_hist', h)
-    setRes({ ...e, ids: quiz.ids, ans: quiz.ans }); setQuiz(null); setView('results')
+    if (quiz.exam) { const y = { ...year, [quiz.level]: { ...(year[quiz.level] || {}), [quiz.exam]: { score: e.score, good, total: e.total } } }; setYear(y); sv('ll_year', y) }
+    setRes({ ...e, ids: quiz.ids, ans: quiz.ans, exam: quiz.exam }); setQuiz(null); setView('results')
   }
 
   const Nav = () => (
@@ -54,6 +65,7 @@ export default function App() {
           <GraduationCap /> Lana Learning
         </button>
         <nav className="flex items-center gap-2">
+          <button className="btn-s !py-2" onClick={() => setView('year')}><Award size={18} /><span className="hidden sm:inline">Mon année</span></button>
           <button className="btn-s !py-2" onClick={() => setView('dashboard')}><BarChart3 size={18} /><span className="hidden sm:inline">Tableau de bord</span></button>
           <button className="btn-s !py-2" aria-label="Basculer le mode sombre" onClick={() => setDark(!dark)}>{dark ? <Sun size={18} /> : <Moon size={18} />}</button>
         </nav>
@@ -72,6 +84,7 @@ export default function App() {
         <h1 className="text-3xl sm:text-4xl font-extrabold">Lana Learning</h1>
         <p className="mt-3 max-w-xl mx-auto opacity-95">Révise tes cours de santé avec des quiz inspirés des contrôles continus. Chaque question est corrigée et expliquée : progresse pas à pas, tu en es capable ! 💜</p>
         <button className="btn bg-white text-brand mt-5" onClick={() => setView('setup')}><Play size={18} /> Commencer à réviser</button>
+        <button className="btn bg-white/20 text-white mt-5 ml-2" onClick={() => setView('year')}><Award size={18} /> Mon année</button>
       </section>
       <div className="grid grid-cols-3 gap-3 mt-5">
         <Stat label="Quiz effectués" v={stats.n} /><Stat label="Moyenne /20" v={stats.avg} /><Stat label="Progression" v={`${stats.prog}%`} />
@@ -101,7 +114,74 @@ export default function App() {
           <span className="font-extrabold text-brand dark:text-lilac">{h.score}/20</span>
         </li>))}</ul>
       <button className="btn-p w-full mt-4" onClick={() => setView('setup')}><Play size={18} /> Nouvelle révision</button>
+      <button className="btn-s w-full mt-3" onClick={() => setView('flags')}><Flag size={18} /> Questions douteuses ({flags.filter(byId).length})</button>
       <Resume />
+    </>
+  )
+  else if (view === 'year') {
+    const yr = year[cfg.level] || {}
+    const sem = k => { const cc = yr[`s${k}-cc`], sn = yr[`s${k}-sn`]; return cc && sn ? +(cc.score * CC_WEIGHT + sn.score * (1 - CC_WEIGHT)).toFixed(2) : null }
+    const s1 = sem(1), s2 = sem(2), done = s1 !== null && s2 !== null
+    const moy = done ? +((s1 + s2) / 2).toFixed(2) : 0
+    const admis = done && moy >= PASS_MARK
+    const mention = moy >= 16 ? 'Très bien' : moy >= 14 ? 'Bien' : moy >= 12 ? 'Assez bien' : 'Passable'
+    body = (
+      <>
+        <h1 className="text-2xl font-extrabold mb-1">Mon année universitaire</h1>
+        <p className="text-sm opacity-80 mb-3">Passe les 2 contrôles continus et les 2 sessions normales. Moyenne de chaque semestre : CC {Math.round(CC_WEIGHT * 100)} % + SN {Math.round((1 - CC_WEIGHT) * 100)} %. Admission à partir de {PASS_MARK}/20.</p>
+        <div className="flex flex-wrap gap-2 mb-4">{LEVELS.map(l => <button key={l} className={`chip ${cfg.level === l ? 'chip-on' : ''}`} aria-pressed={cfg.level === l} onClick={() => setCfg({ ...cfg, level: l })}>{l}</button>)}</div>
+        <div className="space-y-2">{EXAM_PLAN.map(p => {
+          const r = yr[p.id]
+          return (
+            <div key={p.id} className="card !p-4 flex items-center justify-between gap-3">
+              <div><div className="font-bold">{p.label}</div><div className="text-xs opacity-70">{p.kind === 'CC' ? 'Contrôle continu' : 'Session normale'} · {Math.min(p.questions, QUESTIONS.filter(q => q.level === cfg.level).length)} questions · chronomètre</div></div>
+              <div className="text-right shrink-0">{r && <div className="font-extrabold text-brand dark:text-lilac mb-1">{r.score}/20</div>}<button className="btn-p !py-2 !px-4 text-sm" onClick={() => startExam(p)}><Play size={16} /> {r ? 'Repasser' : 'Passer'}</button></div>
+            </div>)
+        })}</div>
+        <Resume />
+        {!done && <p className="text-center text-sm mt-4 opacity-80">Épreuves passées : {EXAM_PLAN.filter(p => yr[p.id]).length}/{EXAM_PLAN.length}. Termine-les toutes pour découvrir ton résultat ! ✨</p>}
+        {done && (admis ? (
+          <div className="mt-5 rounded-3xl p-1 bg-gradient-to-br from-amber-300 via-rose to-brand shadow-2xl">
+            <div className="rounded-[1.4rem] bg-white dark:bg-slate-900 p-6 text-center">
+              <div className="text-4xl animate-bounce">🎉🎓🎉</div>
+              <p className="tracking-[0.3em] text-xs font-bold text-brand dark:text-lilac mt-2">CERTIFICAT DE RÉUSSITE</p>
+              <h2 className="text-4xl font-extrabold bg-gradient-to-r from-brand to-rose bg-clip-text text-transparent my-2">ADMIS(E) !</h2>
+              <p>Tu as validé ton année de <b>{cfg.level}</b></p>
+              <div className="text-5xl font-extrabold text-brand dark:text-lilac my-2">{moy}/20</div>
+              <p className="font-semibold">Mention : {mention} 🌟</p>
+              <p className="text-sm opacity-80 mt-1">S1 : {s1}/20 · S2 : {s2}/20</p>
+              <p className="mt-3">Bravo, futur(e) professionnel(le) de santé ! Tu peux être fier(e) de toi 💜🥳</p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 rounded-3xl p-1 bg-gradient-to-br from-orange-300 via-rose to-lilac shadow-2xl">
+            <div className="rounded-[1.4rem] bg-white dark:bg-slate-900 p-6 text-center">
+              <div className="text-4xl animate-pulse">🌈💪🌱</div>
+              <p className="tracking-[0.3em] text-xs font-bold text-rose-600 mt-2">RÉSULTAT DE L’ANNÉE</p>
+              <h2 className="text-4xl font-extrabold text-rose-600 my-2">REFUSÉ(E)… pour l’instant</h2>
+              <div className="text-5xl font-extrabold text-brand dark:text-lilac my-2">{moy}/20</div>
+              <p className="text-sm opacity-80">S1 : {s1}/20 · S2 : {s2}/20 · il fallait {PASS_MARK}/20</p>
+              <p className="mt-3">Ce n’est pas une fin, juste une étape ! Relis les corrections, recommence l’année et tu vas y arriver. Tu es plus proche que tu ne le crois 💜</p>
+            </div>
+          </div>
+        ))}
+        {done && <button className="btn-s w-full mt-3" onClick={() => { const y = { ...year }; delete y[cfg.level]; setYear(y); sv('ll_year', y) }}><RotateCcw size={18} /> Recommencer l’année</button>}
+      </>
+    )
+  }
+  else if (view === 'flags') body = (
+    <>
+      <h1 className="text-2xl font-extrabold mb-1">Questions douteuses</h1>
+      <p className="text-sm opacity-80 mb-3">Vérifie ces questions avec ton cours, un camarade plus avancé ou les références de ta faculté. En cas de désaccord, ton cours fait foi.</p>
+      {flags.filter(byId).length === 0 && <p className="opacity-70">Aucune question signalée pour l’instant. Utilise le bouton « Question douteuse » dans les corrections.</p>}
+      <div className="space-y-3">{flags.map(byId).filter(Boolean).map(q => (
+        <div key={q.id} className="card">
+          <div className="text-xs font-semibold text-brand dark:text-lilac mb-1">{q.level} · {q.subject}</div>
+          <p className="font-semibold">{q.q}</p>
+          <p className="text-sm mt-2"><b>Réponse proposée :</b> {q.answers.map(i => q.options[i]).join(' · ')}</p>
+          <p className="text-sm mt-1 opacity-80">💡 {q.explanation}</p>
+          <button className="btn-s !py-1.5 !px-3 text-xs mt-2" onClick={() => toggleFlag(q.id)}><Check size={14} /> Vérifiée, retirer de la liste</button>
+        </div>))}</div>
     </>
   )
   else if (view === 'setup') body = (
@@ -155,7 +235,7 @@ export default function App() {
           <p className="mt-3 font-semibold">{msg}</p>
         </div>
         <div className="flex gap-2 my-4">
-          <button className="btn-p flex-1" onClick={() => setView('setup')}><RotateCcw size={18} /> Recommencer</button>
+          <button className="btn-p flex-1" onClick={() => setView(res.exam ? 'year' : 'setup')}>{res.exam ? <Award size={18} /> : <RotateCcw size={18} />} {res.exam ? 'Mon année' : 'Recommencer'}</button>
           <button className="btn-s flex-1" onClick={() => setView('dashboard')}><Home size={18} /> Tableau de bord</button>
         </div>
         <h2 className="font-bold mb-2">Correction détaillée</h2>
@@ -167,6 +247,7 @@ export default function App() {
               <p className="font-semibold my-2">{q.q}</p>
               <ul className="space-y-1 text-sm">{q.options.map((o, i) => <li key={i} className={`rounded-lg px-3 py-1.5 ${q.answers.includes(i) ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100' : a.includes(i) ? 'bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-100' : ''}`}>{o}{q.answers.includes(i) ? ' ✓ bonne réponse' : a.includes(i) ? ' ✗ ta réponse' : ''}</li>)}</ul>
               <p className="text-sm mt-2 opacity-80">💡 {q.explanation}</p>
+              <button className="btn-s !py-1.5 !px-3 text-xs mt-2" onClick={() => toggleFlag(id)}><Flag size={14} /> {flags.includes(id) ? 'Signalée ✓ (retirer)' : 'Question douteuse'}</button>
             </div>)
         })}</div>
       </>
