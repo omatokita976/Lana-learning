@@ -1,5 +1,5 @@
 # Lana Learning 🩵
-Plateforme de quiz de révision (L2 → M2, filières santé). React + Vite + Tailwind + Lucide, données en LocalStorage.
+Plateforme de quiz de révision (Niveau 4 → Doctorat, filières santé, 20 questions par niveau). React + Vite + Tailwind + Lucide, données en LocalStorage.
 
 ## Installation
 ```bash
