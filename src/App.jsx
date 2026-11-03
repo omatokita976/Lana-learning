@@ -7,15 +7,15 @@ const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch 
 const ok = (q, a = []) => a.length === q.answers.length && q.answers.every(x => a.includes(x))
 const byId = id => QUESTIONS.find(q => q.id === id)
 const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-const LEVEL_NAMES = { L2: 'Licence 2', L3: 'Licence 3', M1: 'Master 1', M2: 'Master 2' }
+const LEVEL_NAMES = { 'Niveau 4': '4e année', 'Niveau 5': '5e année', 'Niveau 6': '6e année', Doctorat: 'Doctorat' }
 
 export default function App() {
   const [view, setView] = useState('home')
   const [dark, setDark] = useState(() => ld('ll_dark', false))
   const [hist, setHist] = useState(() => ld('ll_hist', []))
-  const [quiz, setQuiz] = useState(() => ld('ll_session', null))
+  const [quiz, setQuiz] = useState(() => { const s = ld('ll_session', null); return s && s.ids.every(byId) ? s : null })
   const [res, setRes] = useState(null)
-  const [cfg, setCfg] = useState({ level: 'L2', subject: 'Toutes', count: 5, timer: false })
+  const [cfg, setCfg] = useState({ level: 'Niveau 4', subject: 'Toutes', count: 5, timer: false })
 
   useEffect(() => { document.documentElement.classList.toggle('dark', dark); sv('ll_dark', dark) }, [dark])
   useEffect(() => { quiz ? sv('ll_session', quiz) : localStorage.removeItem('ll_session') }, [quiz])
@@ -174,10 +174,10 @@ export default function App() {
   } else body = <button className="btn-p" onClick={() => setView('home')}>Retour à l’accueil</button>
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen px-2 sm:px-4">
       <Nav />
-      <main className="max-w-4xl mx-auto p-4 pb-10">{body}</main>
-      <footer className="text-center text-xs opacity-60 pb-6">Lana Learning · outil de révision, ne remplace pas vos cours ni vos enseignants.</footer>
+      <main className="max-w-4xl mx-auto my-4 p-4 pb-8 rounded-3xl bg-blush/95 dark:bg-slate-900/90 shadow-2xl shadow-black/20">{body}</main>
+      <footer className="text-center text-xs text-white/80 pb-6">Lana Learning · outil de révision, ne remplace pas vos cours ni vos enseignants.</footer>
     </div>
   )
 }
