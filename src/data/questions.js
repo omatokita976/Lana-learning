@@ -1,5 +1,7 @@
 // Ajouter des questions : une ligne [matière, énoncé, propositions, bonnes réponses (indices), explication, difficulté 1-3]
 // dans le niveau voulu. Le type (QCM / QRM / VF) et l’identifiant sont générés automatiquement.
+import { EXTRA } from './bank-avancee.js'
+import { EXTRA2 } from './bank-avancee-2.js'
 export const LEVELS = ['Niveau 4', 'Niveau 5', 'Niveau 6', 'Doctorat']
 export const SUBJECTS = ['Anatomie', 'Physiologie', 'Biochimie', 'Pharmacologie', 'Microbiologie', 'Immunologie', 'Pathologie', 'Santé publique', 'Sémiologie', 'Épidémiologie']
 const V = ['Vrai', 'Faux']
@@ -93,8 +95,12 @@ const BANK = {
     ['Épidémiologie', 'Quel est l’intérêt principal de la randomisation ?', ['Répartir au hasard les facteurs de confusion connus et inconnus entre les groupes', 'Augmenter la taille de l’échantillon', 'Supprimer toute erreur de mesure', 'Garantir la généralisation à tous'], [0], 'Elle rend les groupes comparables à l’inclusion, réduisant le biais de confusion.', 2]
   ]
 }
+// Mélange l’ordre des propositions (les bonnes réponses suivent) pour éviter qu’elles soient toujours au même rang.
+const shuf = (o, a) => { const idx = o.map((_, i) => i).sort(() => Math.random() - 0.5); return [idx.map(i => o[i]), a.map(x => idx.indexOf(x)).sort((x, y) => x - y)] }
 const n = {}
-export const QUESTIONS = LEVELS.flatMap(level => BANK[level].map(([subject, q, options, answers, explanation, difficulty = 2]) => {
+export const QUESTIONS = LEVELS.flatMap(level => [...BANK[level], ...(EXTRA[level] || []), ...(EXTRA2[level] || [])].map(([subject, q, options, answers, explanation, difficulty = 2]) => {
   n[level] = (n[level] || 0) + 1
-  return { id: `${level.replace(/\W/g, '').toLowerCase()}-${n[level]}`, level, subject, type: options === V ? 'VF' : answers.length > 1 ? 'QRM' : 'QCM', q, options, answers, explanation, difficulty }
+  const vf = options.length === 2 && options[0] === 'Vrai'
+  const [o2, a2] = vf ? [options, answers] : shuf(options, answers)
+  return { id: `${level.replace(/\W/g, '').toLowerCase()}-${n[level]}`, level, subject, type: vf ? 'VF' : answers.length > 1 ? 'QRM' : 'QCM', q, options: o2, answers: a2, explanation, difficulty }
 }))
