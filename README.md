@@ -20,5 +20,6 @@ npm run build    # génère dist/
 
 ## Structure
 - `src/App.jsx` : vues (accueil, tableau de bord, préparation, quiz, résultats)
-- `src/data/questions.js` : banque de questions
+- `src/data/questions.js` + `src/data/bank-avancee*.js` : banque de questions
+- `src/data/config.js` : plan de l’année (CC, SN, pondération, moyenne d’admission)
 - `src/index.css` : thème Tailwind
